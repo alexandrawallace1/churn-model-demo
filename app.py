@@ -1,0 +1,69 @@
+# Cell saved for app.py
+import gradio as gr
+import numpy as np
+import pandas as pd
+
+def predict(age, income_level, education, device_type, tech_comfort_score):
+    """
+    Predict renewal probability for a single customer.
+
+    The input values must be passed through the same encoder used during
+    training. We build a one-row DataFrame with the raw categorical values
+    (matching the column names the encoder was fit on), transform it, then
+    combine with the numeric features in the same order as the training
+    feature matrix:
+
+        Training column order (from Step 4 of the training notebook):
+        [AGE, TECH_COMFORT_SCORE, <encoded dummies in encoder order>]
+
+    Bug note: do NOT recreate the one-hot logic by hand — case mismatches
+    or category order differences will produce a constant all-zeros input
+    and a constant prediction regardless of what the user enters.
+    """
+
+    # Build a single-row DataFrame with the raw categorical values.
+    # Column names must match exactly what the encoder was fit on (UPPERCASE).
+    raw = pd.DataFrame([{
+        'INCOME_LEVEL': income_level,
+        'EDUCATION':    education,
+        'DEVICE_TYPE':  device_type,
+    }])
+
+    # Apply the saved encoder (transform only — never fit_transform here)
+    encoded = encoder.transform(raw)
+    encoded_df = pd.DataFrame(encoded, columns=encoder.get_feature_names_out())
+
+    # Build the numeric part of the feature vector
+    numeric_df = pd.DataFrame([{
+        'AGE':               age,
+        'TECH_COMFORT_SCORE': tech_comfort_score,
+    }])
+
+    # Combine in the same column order as the training feature matrix:
+    # numeric columns first, then encoded dummies
+    input_df = pd.concat([numeric_df, encoded_df], axis=1)
+
+    # Predict: column 1 = P(renewed), column 0 = P(churned)
+    probability = model.predict_proba(input_df)[0][1]
+
+    risk = "Low" if probability >= 0.6 else "Medium" if probability >= 0.4 else "High"
+    return f"Renewal Probability: {probability:.2f}  |  Churn Risk: {risk}"
+
+
+# Gradio radio values must exactly match the category strings the encoder
+# was trained on (check encoder.categories_ printed in the previous cell).
+iface = gr.Interface(
+    fn=predict,
+    inputs=[
+        gr.Slider(label="Age"),
+        gr.Radio(["low", "medium", "high", "very high"], label="Income Level"),
+        gr.Radio(["high school", "other", "graduate", "post graduate"], label="Education"),
+        gr.Radio(["multi-device", "mobile-only", "desktop-only"], label="Device Type"),
+        gr.Slider(label="Tech Comfort Score"),
+    ],
+    outputs="text",
+    title="Customer Renewal Probability Predictor",
+    description="Enter customer attributes to predict the likelihood of subscription renewal."
+)
+
+iface.launch()
