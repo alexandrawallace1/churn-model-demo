@@ -55,11 +55,11 @@ def predict(age, income_level, education, device_type, tech_comfort_score):
 iface = gr.Interface(
     fn=predict,
     inputs=[
-        gr.Slider(label="Age"),
+        gr.Number(label="Age"),
         gr.Radio(["low", "medium", "high", "very high"], label="Income Level"),
         gr.Radio(["high school", "other", "graduate", "post graduate"], label="Education"),
         gr.Radio(["multi-device", "mobile-only", "desktop-only"], label="Device Type"),
-        gr.Slider(label="Tech Comfort Score"),
+        gr.Number(label="Tech Comfort Score"),
     ],
     outputs="text",
     title="Customer Renewal Probability Predictor",
